@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Yolked — Egg Aim Trainer</title>
+<title>Lock-On — Aim Trainer</title>
 <style>
   :root {
     --ground: #101217;
@@ -12,8 +12,8 @@
     --line: #2a3040;
     --ink: #f2ede3;
     --muted: #8b94a7;
-    --yolk: #ffc53d;
-    --yolk-deep: #f5a300;
+    --accent: #45d8ff;
+    --accent-deep: #18b8ec;
     --good: #6fd08c;
     --bad: #e8705f;
     --radius: 10px;
@@ -30,7 +30,7 @@
     -webkit-user-select: none;
   }
   button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
-  button:focus-visible { outline: 2px solid var(--yolk); outline-offset: 2px; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   .screen { position: absolute; inset: 0; display: none; }
   .screen.active { display: flex; }
@@ -44,7 +44,7 @@
     letter-spacing: -0.03em;
     line-height: 1;
   }
-  .brand h1 .accent { color: var(--yolk); }
+  .brand h1 .accent { color: var(--accent); }
   .brand p { color: var(--muted); margin-top: 10px; font-size: 15px; }
   .brand p b { color: var(--ink); font-weight: 600; }
 
@@ -66,13 +66,13 @@
     gap: 10px;
     transition: border-color 120ms ease, transform 120ms ease;
   }
-  .mode-card:hover { border-color: var(--yolk); transform: translateY(-2px); }
+  .mode-card:hover { border-color: var(--accent); transform: translateY(-2px); }
   .mode-card .tag {
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--yolk);
+    color: var(--accent);
   }
   .mode-card h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
   .mode-card .desc { color: var(--muted); font-size: 13.5px; line-height: 1.45; min-height: 40px; }
@@ -123,7 +123,7 @@
     position: absolute; inset: 0;
     display: none;
     align-items: center; justify-content: center;
-    font-size: 120px; font-weight: 900; color: var(--yolk);
+    font-size: 120px; font-weight: 900; color: var(--accent);
     pointer-events: none;
   }
   #countdown.active { display: flex; }
@@ -131,14 +131,14 @@
   /* ---------- Reflex ---------- */
   #reflex { flex-direction: column; align-items: center; justify-content: center; gap: 18px; cursor: pointer; }
   #reflex.hold { background: var(--panel); }
-  #reflex.go { background: var(--yolk); color: #1a1405; }
+  #reflex.go { background: var(--accent); color: #062029; }
   #reflex-word { font-size: clamp(48px, 10vw, 96px); font-weight: 900; letter-spacing: -0.02em; }
   #reflex-sub { font-size: 15px; opacity: 0.75; }
   #reflex-times { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 15px; opacity: 0.75; min-height: 20px; }
 
   /* ---------- Results ---------- */
   #results { flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 20px; }
-  #results .tag { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--yolk); }
+  #results .tag { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
   #results h2 { font-size: 30px; font-weight: 800; }
   #result-score {
     font-family: var(--mono); font-variant-numeric: tabular-nums;
@@ -148,7 +148,7 @@
   #result-score .unit { font-size: 0.3em; color: var(--muted); font-weight: 400; }
   #pb-badge {
     display: none;
-    background: var(--yolk); color: #1a1405;
+    background: var(--accent); color: #062029;
     font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
     padding: 5px 12px; border-radius: 99px;
   }
@@ -164,9 +164,9 @@
     background: var(--panel);
     transition: border-color 120ms ease;
   }
-  .btn:hover { border-color: var(--yolk); }
-  .btn.primary { background: var(--yolk); color: #1a1405; border-color: var(--yolk); }
-  .btn.primary:hover { background: var(--yolk-deep); border-color: var(--yolk-deep); }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #062029; border-color: var(--accent); }
+  .btn.primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
 
   .spark-tip {
     position: fixed;
@@ -192,8 +192,8 @@
 
 <div id="menu" class="screen active">
   <div class="brand">
-    <h1>YOL<span class="accent">KED</span></h1>
-    <p>Egg-powered aim training. Pick a drill, crack some shells, beat your <b>PB</b>.</p>
+    <h1>LOCK<span class="accent">-ON</span></h1>
+    <p>Precision aim training. Pick a drill, shred some targets, beat your <b>PB</b>.</p>
   </div>
   <div class="modes" id="modes"></div>
   <div class="menu-foot">
@@ -221,12 +221,12 @@
 
 <div id="reflex" class="screen hold">
   <div id="reflex-word">WAIT…</div>
-  <div id="reflex-sub">Click the instant the screen turns yolk.</div>
+  <div id="reflex-sub">Click the instant the screen lights up.</div>
   <div id="reflex-times"></div>
 </div>
 
 <div id="results" class="screen">
-  <span class="tag" id="result-mode">Splatter</span>
+  <span class="tag" id="result-mode">Burst</span>
   <div id="pb-badge">New personal best</div>
   <div id="result-score">0</div>
   <div id="result-detail"></div>
@@ -244,10 +244,10 @@
 /* ============================== Config ============================== */
 
 const MODES = {
-  splatter: {
-    name: "Splatter",
+  burst: {
+    name: "Burst",
     tag: "Speed",
-    desc: "Three eggs on screen at once for 30 seconds. Crack them as fast as you can.",
+    desc: "Three targets on screen at once for 30 seconds. Clear them as fast as you can.",
     unit: "hits",
     higherIsBetter: true,
     duration: 30,
@@ -256,7 +256,7 @@ const MODES = {
   flick: {
     name: "Flick",
     tag: "Precision",
-    desc: "One egg at a time, teleporting across the screen. Snap to it — 30 seconds.",
+    desc: "One target at a time, teleporting across the screen. Snap to it — 30 seconds.",
     unit: "hits",
     higherIsBetter: true,
     duration: 30,
@@ -265,8 +265,8 @@ const MODES = {
   track: {
     name: "Track",
     tag: "Control",
-    desc: "A runaway egg wanders and speeds up. Keep your cursor glued to it for 30 seconds.",
-    unit: "% on egg",
+    desc: "A runaway target wanders and speeds up. Keep your crosshair glued to it for 30 seconds.",
+    unit: "% locked",
     higherIsBetter: true,
     duration: 30,
     fmt: v => v.toFixed(1),
@@ -274,14 +274,14 @@ const MODES = {
   reflex: {
     name: "Reflex",
     tag: "Reaction",
-    desc: "Five rounds. Wait for the screen to flash yolk, then click instantly. Average reaction time.",
+    desc: "Five rounds. Wait for the flash, then click instantly. Lowest average reaction time wins.",
     unit: "ms avg",
     higherIsBetter: false,
     fmt: v => String(Math.round(v)),
   },
 };
 
-const STORE_KEY = "yolked.v1";
+const STORE_KEY = "lockon.v1";
 const MAX_HISTORY = 50;
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -350,7 +350,7 @@ function show(name) {
 
 /* ============================== Menu ================================ */
 
-const YOLK = "#ffc53d";
+const ACCENT = "#45d8ff";
 
 function sparklineSVG(runs, higherIsBetter) {
   const pts = runs.slice(-12).map(r => r.score);
@@ -364,8 +364,8 @@ function sparklineSVG(runs, higherIsBetter) {
   const lastX = x(pts.length - 1).toFixed(1), lastY = y(pts[pts.length - 1]).toFixed(1);
   const best = higherIsBetter ? Math.max(...pts) : Math.min(...pts);
   return `<svg class="spark" viewBox="0 0 ${w} ${h}" role="img" aria-label="Recent scores, best ${best}">
-    <path d="${d}" fill="none" stroke="${YOLK}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${lastX}" cy="${lastY}" r="3" fill="${YOLK}"/>
+    <path d="${d}" fill="none" stroke="${ACCENT}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${lastX}" cy="${lastY}" r="3" fill="${ACCENT}"/>
   </svg>`;
 }
 
@@ -427,7 +427,7 @@ $("sound-toggle").addEventListener("click", () => {
 });
 
 $("wipe-btn").addEventListener("click", () => {
-  if (confirm("Wipe all Yolked stats on this device?")) {
+  if (confirm("Wipe all Lock-On stats on this device?")) {
     store.runs = {};
     saveStore();
     renderMenu();
@@ -450,30 +450,39 @@ function resize() {
 }
 window.addEventListener("resize", () => { if (screens.play.classList.contains("active")) resize(); });
 
-function drawEgg(x, y, r, wobble = 0) {
+function drawTarget(x, y, r, pulse = 0) {
   ctx.save();
   ctx.translate(x, y);
-  if (wobble) ctx.rotate(Math.sin(wobble) * 0.08);
-  // shell
+  const rr = r * (pulse ? 1 + Math.sin(pulse) * 0.04 : 1);
+  // outer glow
+  const glow = ctx.createRadialGradient(0, 0, rr * 0.2, 0, 0, rr * 1.7);
+  glow.addColorStop(0, "rgba(69,216,255,0.22)");
+  glow.addColorStop(1, "rgba(69,216,255,0)");
+  ctx.fillStyle = glow;
   ctx.beginPath();
-  ctx.ellipse(0, 0, r * 0.82, r, 0, 0, Math.PI * 2);
-  const grad = ctx.createRadialGradient(-r * 0.3, -r * 0.4, r * 0.1, 0, 0, r * 1.2);
-  grad.addColorStop(0, "#fdf8ee");
-  grad.addColorStop(1, "#d9cdb4");
-  ctx.fillStyle = grad;
+  ctx.arc(0, 0, rr * 1.7, 0, Math.PI * 2);
   ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "rgba(0,0,0,0.25)";
-  ctx.stroke();
-  // highlight
+  // outer ring
   ctx.beginPath();
-  ctx.ellipse(-r * 0.28, -r * 0.42, r * 0.16, r * 0.24, -0.5, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.arc(0, 0, rr, 0, Math.PI * 2);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#45d8ff";
+  ctx.stroke();
+  // mid ring
+  ctx.beginPath();
+  ctx.arc(0, 0, rr * 0.6, 0, Math.PI * 2);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "rgba(69,216,255,0.4)";
+  ctx.stroke();
+  // core
+  ctx.beginPath();
+  ctx.arc(0, 0, rr * 0.26, 0, Math.PI * 2);
+  ctx.fillStyle = "#45d8ff";
   ctx.fill();
   ctx.restore();
 }
 
-/* splat particles */
+/* shatter particles */
 let particles = [];
 function splat(x, y, r) {
   if (reducedMotion) return;
@@ -488,7 +497,7 @@ function splat(x, y, r) {
       r: 2 + Math.random() * (r * 0.18),
       life: 0.5 + Math.random() * 0.3,
       age: 0,
-      shell: Math.random() < 0.4,
+      spark: Math.random() < 0.4,
     });
   }
 }
@@ -501,7 +510,7 @@ function drawParticles(dt) {
     p.vy += 500 * dt;
     const alpha = 1 - p.age / p.life;
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = p.shell ? "#e8dfc9" : "#ffc53d";
+    ctx.fillStyle = p.spark ? "#d9f6ff" : "#45d8ff";
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
     ctx.fill();
@@ -519,9 +528,9 @@ const state = {
   score: 0,
   clicks: 0,
   hits: 0,
-  eggs: [],
+  targets: [],
   // track mode
-  trackEgg: null,
+  trackTarget: null,
   onTargetTime: 0,
   elapsed: 0,
   lastFrame: 0,
@@ -529,7 +538,7 @@ const state = {
   rafId: 0,
 };
 
-const EGG_R = () => Math.max(26, Math.min(W, H) * 0.045);
+const TARGET_R = () => Math.max(26, Math.min(W, H) * 0.045);
 const MARGIN = 70;
 
 function randPos(r) {
@@ -539,11 +548,11 @@ function randPos(r) {
   };
 }
 
-function spawnEgg(minDistFrom) {
-  const r = EGG_R();
+function spawnTarget(minDistFrom) {
+  const r = TARGET_R();
   for (let tries = 0; tries < 40; tries++) {
     const p = randPos(r);
-    const clear = state.eggs.every(e => Math.hypot(e.x - p.x, e.y - p.y) > r * 3) &&
+    const clear = state.targets.every(e => Math.hypot(e.x - p.x, e.y - p.y) > r * 3) &&
       (!minDistFrom || Math.hypot(minDistFrom.x - p.x, minDistFrom.y - p.y) > Math.min(W, H) * 0.25);
     if (clear) return { x: p.x, y: p.y, r, born: performance.now() };
   }
@@ -558,13 +567,13 @@ function startMode(mode) {
   resize();
   state.running = false;
   state.score = 0; state.clicks = 0; state.hits = 0;
-  state.eggs = [];
-  state.trackEgg = null;
+  state.targets = [];
+  state.trackTarget = null;
   state.onTargetTime = 0;
   state.elapsed = 0;
   state.timeLeft = MODES[mode].duration;
   particles = [];
-  $("hud-score-label").textContent = mode === "track" ? "On egg" : "Hits";
+  $("hud-score-label").textContent = mode === "track" ? "On target" : "Hits";
   updateHUD();
 
   // countdown 3-2-1
@@ -588,13 +597,13 @@ function startMode(mode) {
 
 function beginRun() {
   const mode = state.mode;
-  if (mode === "splatter") {
-    while (state.eggs.length < 3) state.eggs.push(spawnEgg());
+  if (mode === "burst") {
+    while (state.targets.length < 3) state.targets.push(spawnTarget());
   } else if (mode === "flick") {
-    state.eggs.push(spawnEgg());
+    state.targets.push(spawnTarget());
   } else if (mode === "track") {
-    const r = EGG_R() * 1.1;
-    state.trackEgg = { x: W / 2, y: H / 2, r, vx: 0, vy: 0, wp: randPos(r) };
+    const r = TARGET_R() * 1.1;
+    state.trackTarget = { x: W / 2, y: H / 2, r, vx: 0, vy: 0, wp: randPos(r) };
   }
   state.running = true;
   state.lastFrame = performance.now();
@@ -616,7 +625,7 @@ function loop(now) {
 }
 
 function updateTrack(dt) {
-  const e = state.trackEgg;
+  const e = state.trackTarget;
   // speed ramps from 160 to 420 px/s over the run
   const speed = (160 + 260 * (state.elapsed / MODES.track.duration)) * Math.min(W, H) / 800;
   let dx = e.wp.x - e.x, dy = e.wp.y - e.y;
@@ -645,18 +654,18 @@ function drawFrame(dt) {
   for (let y = step; y < H; y += step) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
   ctx.stroke();
 
-  if (state.mode === "track" && state.trackEgg) {
-    const e = state.trackEgg;
+  if (state.mode === "track" && state.trackTarget) {
+    const e = state.trackTarget;
     if (e.on) {
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.r * 1.35, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(255,197,61,0.8)";
+      ctx.strokeStyle = "rgba(69,216,255,0.8)";
       ctx.lineWidth = 3;
       ctx.stroke();
     }
-    drawEgg(e.x, e.y, e.r, performance.now() / 90);
+    drawTarget(e.x, e.y, e.r, performance.now() / 90);
   }
-  for (const e of state.eggs) drawEgg(e.x, e.y, e.r);
+  for (const e of state.targets) drawTarget(e.x, e.y, e.r);
   drawParticles(dt || 0.016);
 }
 
@@ -683,16 +692,16 @@ canvas.addEventListener("pointerdown", e => {
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
   state.clicks++;
   let hitIndex = -1;
-  for (let i = 0; i < state.eggs.length; i++) {
-    const egg = state.eggs[i];
-    if (Math.hypot(mx - egg.x, my - egg.y) <= egg.r * 1.15) { hitIndex = i; break; }
+  for (let i = 0; i < state.targets.length; i++) {
+    const t = state.targets[i];
+    if (Math.hypot(mx - t.x, my - t.y) <= t.r * 1.15) { hitIndex = i; break; }
   }
   if (hitIndex >= 0) {
-    const egg = state.eggs.splice(hitIndex, 1)[0];
+    const target = state.targets.splice(hitIndex, 1)[0];
     state.hits++;
-    splat(egg.x, egg.y, egg.r);
+    splat(target.x, target.y, target.r);
     sfx.crack();
-    state.eggs.push(spawnEgg(state.mode === "flick" ? egg : null));
+    state.targets.push(spawnTarget(state.mode === "flick" ? target : null));
   } else {
     sfx.miss();
   }
@@ -728,12 +737,12 @@ function nextReflexRound() {
   reflexEl.classList.remove("go");
   reflexEl.classList.add("hold");
   $("reflex-word").textContent = "WAIT…";
-  $("reflex-sub").textContent = `Round ${reflex.round + 1} of 5 — click the instant the screen turns yolk.`;
+  $("reflex-sub").textContent = `Round ${reflex.round + 1} of 5 — click the instant the screen lights up.`;
   reflex.waiting = false;
   reflex.timer = setTimeout(() => {
     reflexEl.classList.remove("hold");
     reflexEl.classList.add("go");
-    $("reflex-word").textContent = "CRACK!";
+    $("reflex-word").textContent = "NOW!";
     $("reflex-sub").textContent = "";
     reflex.goAt = performance.now();
     reflex.waiting = true;
@@ -779,12 +788,12 @@ function endRun() {
   let score, detail;
   if (mode === "track") {
     score = state.elapsed > 0 ? (state.onTargetTime / state.elapsed) * 100 : 0;
-    detail = `${state.onTargetTime.toFixed(1)}s on the egg out of ${state.elapsed.toFixed(0)}s`;
+    detail = `${state.onTargetTime.toFixed(1)}s on target out of ${state.elapsed.toFixed(0)}s`;
   } else {
     score = state.hits;
     const acc = state.clicks > 0 ? (state.hits / state.clicks) * 100 : 0;
     detail = `${state.clicks} clicks · ${acc.toFixed(0)}% accuracy` +
-      (mode === "flick" && state.hits > 0 ? ` · ${(MODES.flick.duration / state.hits * 1000).toFixed(0)}ms per egg` : "");
+      (mode === "flick" && state.hits > 0 ? ` · ${(MODES.flick.duration / state.hits * 1000).toFixed(0)}ms per target` : "");
   }
   finishRun(mode, score, detail);
 }
