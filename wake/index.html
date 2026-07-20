@@ -751,22 +751,32 @@ function solidAt(px, py) {
   return !state.open[ty][tx];
 }
 
-function moveAxis(axis, delta) {
-  const p = state.player;
-  const r = p.r * 0.86; // forgiving corners
-  p[axis] += delta;
-  const x0 = p.x - r, x1 = p.x + r, y0 = p.y - r, y1 = p.y + r;
-  for (let ty = Math.floor(y0 / T); ty <= Math.floor(y1 / T); ty++) {
-    for (let tx = Math.floor(x0 / T); tx <= Math.floor(x1 / T); tx++) {
-      if (tx < 0 || ty < 0 || tx >= state.gw || ty >= state.gh || state.open[ty][tx]) continue;
-      // push out of this solid tile along the moved axis
-      if (axis === "x") {
-        p.x = delta > 0 ? tx * T - r : (tx + 1) * T + r;
-      } else {
-        p.y = delta > 0 ? ty * T - r : (ty + 1) * T + r;
-      }
+function hitsWall(px, py, r) {
+  const tx0 = Math.floor((px - r) / T), tx1 = Math.floor((px + r) / T);
+  const ty0 = Math.floor((py - r) / T), ty1 = Math.floor((py + r) / T);
+  for (let ty = ty0; ty <= ty1; ty++) {
+    for (let tx = tx0; tx <= tx1; tx++) {
+      if (tx < 0 || ty < 0 || tx >= state.gw || ty >= state.gh || !state.open[ty][tx]) return true;
     }
   }
+  return false;
+}
+
+function moveAxis(axis, delta) {
+  if (!delta) return;
+  const p = state.player;
+  const r = p.r * 0.86; // forgiving corners
+  const before = p[axis];
+  p[axis] += delta;
+  if (!hitsWall(p.x, p.y, r)) return;
+  // a single step is always shorter than a tile, so any new overlap lives in
+  // the one column/row the leading edge just entered — clamp flush against it
+  const lead = p[axis] + (delta > 0 ? r : -r);
+  p[axis] = delta > 0
+    ? Math.floor(lead / T) * T - r - 0.001
+    : (Math.floor(lead / T) + 1) * T + r + 0.001;
+  // corners or float dust: if the clamped spot is still blocked, stay put
+  if (hitsWall(p.x, p.y, r)) p[axis] = before;
 }
 
 function updatePlayer(dt) {
@@ -1230,7 +1240,7 @@ $("wipe-btn").addEventListener("click", () => {
 /* =============================== Boot ================================= */
 
 renderMenuStats();
-window.__wake = { state, startLevel, burnWake, T, levelConfig, store };
+window.__wake = { state, startLevel, burnWake, T, levelConfig, store, keys };
 </script>
 </body>
 </html>
