@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WAKE — They hunt where you've walked</title>
+<style>
+  :root {
+    --ground: #0a0c11;
+    --panel: #141821;
+    --panel-2: #1b2029;
+    --line: #262c3a;
+    --ink: #eef1f7;
+    --muted: #8b94a7;
+    --trail: #45d8ff;
+    --wisp: #ff4d7f;
+    --lantern: #ffc857;
+    --portal: #b18cff;
+    --radius: 10px;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--trail); outline-offset: 2px; }
+
+  .screen { position: absolute; inset: 0; display: none; }
+  .screen.active { display: flex; }
+
+  /* ---------- Menu ---------- */
+  #menu { flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+  #menu h1 {
+    font-size: clamp(56px, 10vw, 96px);
+    font-weight: 900;
+    letter-spacing: 0.22em;
+    text-indent: 0.22em;
+    line-height: 1;
+    color: var(--ink);
+    text-shadow: 0 0 34px rgba(69, 216, 255, 0.45);
+  }
+  #menu .tagline { color: var(--trail); font-size: 16px; margin-top: 14px; font-weight: 600; letter-spacing: 0.04em; }
+  #menu .how {
+    max-width: 520px;
+    color: var(--muted);
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin-top: 18px;
+  }
+  #menu .how b { color: var(--ink); font-weight: 600; }
+  #menu .how .wisp-word { color: var(--wisp); font-weight: 600; }
+  #menu .how .lantern-word { color: var(--lantern); font-weight: 600; }
+  .keys { display: flex; gap: 18px; margin-top: 22px; color: var(--muted); font-size: 13px; font-family: var(--mono); }
+  .keys span b { color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-weight: 600; }
+  #start-btn {
+    margin-top: 30px;
+    padding: 14px 46px;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #04222e;
+    background: var(--trail);
+    border-radius: var(--radius);
+    box-shadow: 0 0 30px rgba(69, 216, 255, 0.35);
+    transition: transform 120ms ease;
+  }
+  #start-btn:hover { transform: translateY(-2px); }
+  .menu-stats { margin-top: 22px; color: var(--muted); font-size: 13px; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .menu-stats b { color: var(--lantern); font-weight: 700; }
+  .menu-foot { margin-top: 14px; display: flex; gap: 18px; color: var(--muted); font-size: 12.5px; }
+  .menu-foot button { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+  .menu-foot button:hover { color: var(--ink); }
+
+  /* ---------- Game ---------- */
+  #game { display: none; }
+  #game.active { display: block; }
+  #canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  .hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 20px;
+    pointer-events: none;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .hud .cell { display: flex; flex-direction: column; gap: 2px; }
+  .hud .cell.right { text-align: right; }
+  .hud .label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-family: system-ui, sans-serif; }
+  .hud .value { font-size: 22px; font-weight: 700; }
+  .hud .value .dim { color: var(--muted); }
+
+  #burn-wrap {
+    position: absolute;
+    bottom: 18px; left: 50%;
+    transform: translateX(-50%);
+    width: 240px;
+    text-align: center;
+    pointer-events: none;
+  }
+  #burn-bar {
+    height: 6px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  #burn-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #1a7a99, var(--trail));
+    border-radius: 99px;
+  }
+  #burn-wrap.ready #burn-fill { background: var(--trail); box-shadow: 0 0 12px rgba(69, 216, 255, 0.8); }
+  #burn-label { margin-top: 7px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  #burn-wrap.ready #burn-label { color: var(--trail); }
+
+  /* ---------- Overlays ---------- */
+  .overlay {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    background: rgba(6, 8, 12, 0.72);
+    backdrop-filter: blur(2px);
+  }
+  .overlay.active { display: flex; }
+  .overlay .big { font-size: clamp(38px, 7vw, 64px); font-weight: 900; letter-spacing: 0.06em; }
+  .overlay .sub { color: var(--muted); font-size: 15px; max-width: 440px; line-height: 1.55; }
+  .overlay .sub b { color: var(--ink); }
+  .overlay .actions { display: flex; gap: 12px; margin-top: 20px; }
+  .btn {
+    padding: 12px 28px;
+    border-radius: var(--radius);
+    font-weight: 700;
+    font-size: 15px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    transition: border-color 120ms ease;
+  }
+  .btn:hover { border-color: var(--trail); }
+  .btn.primary { background: var(--trail); color: #04222e; border-color: var(--trail); }
+  #death-overlay .big { color: var(--wisp); text-shadow: 0 0 30px rgba(255, 77, 127, 0.5); }
+  #clear-overlay .big { color: var(--lantern); text-shadow: 0 0 30px rgba(255, 200, 87, 0.4); }
+
+  #level-intro {
+    position: absolute; inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+  #level-intro.active { display: flex; }
+  #level-intro .lvl { font-size: 56px; font-weight: 900; letter-spacing: 0.18em; text-indent: 0.18em; opacity: 0; animation: introFade 2s ease forwards; }
+  #level-intro .hint { color: var(--muted); font-size: 14px; opacity: 0; animation: introFade 2s ease 0.15s forwards; }
+  @keyframes introFade {
+    0% { opacity: 0; transform: translateY(8px); }
+    20%, 70% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #level-intro .lvl, #level-intro .hint { animation-duration: 0.01s; }
+    #start-btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="menu" class="screen active">
+  <h1>WAKE</h1>
+  <div class="tagline">The maze is safe. Your footsteps aren't.</div>
+  <p class="how">
+    Everywhere you walk, you leave a glowing wake — and <span class="wisp-word">Wisps</span> can only
+    hunt along it. Steal every <span class="lantern-word">lantern</span> (each one you take wakes
+    something), then reach the gate. Every shortcut you carve becomes <b>their road</b>.
+    When your burn is charged, torch your entire wake — any Wisp standing on it goes with it.
+  </p>
+  <div class="keys">
+    <span><b>WASD</b> / <b>←↑↓→</b> move</span>
+    <span><b>Space</b> burn wake</span>
+    <span><b>Esc</b> menu</span>
+  </div>
+  <button id="start-btn" type="button">DESCEND</button>
+  <div class="menu-stats" id="menu-stats"></div>
+  <div class="menu-foot">
+    <button id="sound-toggle" type="button">sound: on</button>
+    <button id="wipe-btn" type="button">reset progress</button>
+  </div>
+</div>
+
+<div id="game" class="screen">
+  <canvas id="canvas"></canvas>
+  <div class="hud">
+    <div class="cell">
+      <span class="label">Depth</span>
+      <span class="value" id="hud-level">1</span>
+    </div>
+    <div class="cell" style="text-align:center">
+      <span class="label">Lanterns</span>
+      <span class="value" id="hud-shards">0<span class="dim">/3</span></span>
+    </div>
+    <div class="cell right">
+      <span class="label">Time</span>
+      <span class="value" id="hud-time">0.0</span>
+    </div>
+  </div>
+  <div id="burn-wrap">
+    <div id="burn-bar"><div id="burn-fill"></div></div>
+    <div id="burn-label">charging…</div>
+  </div>
+  <div id="level-intro"><div class="lvl" id="intro-lvl">DEPTH 1</div><div class="hint" id="intro-hint"></div></div>
+  <div id="death-overlay" class="overlay">
+    <div class="big">CAUGHT</div>
+    <div class="sub" id="death-sub">Your own wake led it straight to you.</div>
+    <div class="actions">
+      <button class="btn primary" id="retry-btn" type="button">Run it back · R</button>
+      <button class="btn" id="death-menu-btn" type="button">Menu</button>
+    </div>
+  </div>
+  <div id="clear-overlay" class="overlay">
+    <div class="big">ESCAPED</div>
+    <div class="sub" id="clear-sub"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* =============================== Config =============================== */
+
+const T = 44;                       // tile size, px
+const PLAYER_SPEED = 4.3 * T;       // px/s
+const WISP_BASE_SPEED = 2.55 * T;   // px/s at depth 1
+const BURN_CHARGE = 14;             // seconds to charge a burn
+const BURN_KEEP_RADIUS = 2;        // trail tiles kept around player (BFS depth)
+const WISP_RESPAWN = 9;             // seconds before a burned wisp can stir again
+const HINTS = [
+  "Every lantern wakes something.",
+  "They only run your roads.",
+  "Backtracking is a gift to them.",
+  "A charged burn is a trap waiting to happen.",
+  "Loop wide. Arrive from clean ground.",
+  "Lure them deep, then cut the road.",
+  "The gate opens when the dark is empty of light.",
+];
+
+const STORE_KEY = "wake.v1";
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function loadStore() {
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+  return { bestDepth: 0, escapes: 0, sound: true };
+}
+const store = loadStore();
+function saveStore() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} }
+
+/* =============================== Audio ================================ */
+
+let audioCtx = null;
+function tone(freq, dur, type = "sine", gainVal = 0.05, delay = 0) {
+  if (!store.sound) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const t0 = audioCtx.currentTime + delay;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(gainVal, t0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur);
+  } catch (e) {}
+}
+const sfx = {
+  lantern: () => { tone(660, 0.12, "sine", 0.05); tone(990, 0.2, "sine", 0.04, 0.08); },
+  wake: () => { tone(90, 0.5, "sawtooth", 0.06); tone(65, 0.7, "sawtooth", 0.05, 0.1); },
+  burn: () => { tone(300, 0.35, "sawtooth", 0.05); tone(150, 0.5, "square", 0.03, 0.05); },
+  wispDie: () => { tone(520, 0.15, "square", 0.04); tone(260, 0.3, "square", 0.03, 0.1); },
+  death: () => { tone(220, 0.4, "sawtooth", 0.07); tone(110, 0.8, "sawtooth", 0.06, 0.15); },
+  gate: () => { tone(440, 0.3, "sine", 0.04); tone(554, 0.3, "sine", 0.04, 0.12); tone(659, 0.45, "sine", 0.04, 0.24); },
+  step: () => {},
+};
+
+/* ============================ DOM helpers ============================= */
+
+const $ = id => document.getElementById(id);
+const menuEl = $("menu"), gameEl = $("game");
+function showMenu() {
+  menuEl.classList.add("active");
+  gameEl.classList.remove("active");
+  state.phase = "menu";
+  renderMenuStats();
+}
+function showGame() {
+  menuEl.classList.remove("active");
+  gameEl.classList.add("active");
+}
+
+function renderMenuStats() {
+  $("menu-stats").innerHTML = store.bestDepth > 0
+    ? `deepest depth <b>${store.bestDepth}</b> · escapes <b>${store.escapes}</b>`
+    : "No descents yet. Progress is saved on this device.";
+  $("sound-toggle").textContent = `sound: ${store.sound ? "on" : "off"}`;
+}
+
+/* =============================== Canvas =============================== */
+
+const canvas = $("canvas");
+const ctx = canvas.getContext("2d");
+const lightCanvas = document.createElement("canvas");
+const lctx = lightCanvas.getContext("2d");
+let VW = 0, VH = 0;
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  VW = canvas.clientWidth; VH = canvas.clientHeight;
+  canvas.width = Math.round(VW * dpr);
+  canvas.height = Math.round(VH * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  lightCanvas.width = canvas.width;
+  lightCanvas.height = canvas.height;
+  lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener("resize", () => { if (state.phase !== "menu") resize(); });
+
+/* ============================= Maze gen =============================== */
+
+// Recursive-backtracker maze -> double-resolution tile grid.
+// open[y][x] === true means corridor; false means wall.
+function generateMaze(cols, rows) {
+  const cells = Array.from({ length: rows }, () => Array(cols).fill(0)); // bitmask N1 E2 S4 W8
+  const stack = [[0, 0]];
+  const seen = Array.from({ length: rows }, () => Array(cols).fill(false));
+  seen[0][0] = true;
+  const DIRS = [[0, -1, 1, 4], [1, 0, 2, 8], [0, 1, 4, 1], [-1, 0, 8, 2]];
+  while (stack.length) {
+    const [cx, cy] = stack[stack.length - 1];
+    const options = DIRS.filter(([dx, dy]) => {
+      const nx = cx + dx, ny = cy + dy;
+      return nx >= 0 && ny >= 0 && nx < cols && ny < rows && !seen[ny][nx];
+    });
+    if (!options.length) { stack.pop(); continue; }
+    const [dx, dy, bit, opp] = options[Math.floor(Math.random() * options.length)];
+    const nx = cx + dx, ny = cy + dy;
+    cells[cy][cx] |= bit;
+    cells[ny][nx] |= opp;
+    seen[ny][nx] = true;
+    stack.push([nx, ny]);
+  }
+  // Punch some extra loops so the maze isn't a strict tree (more routing choices)
+  const extra = Math.floor(cols * rows * 0.06);
+  for (let i = 0; i < extra; i++) {
+    const cx = 1 + Math.floor(Math.random() * (cols - 2));
+    const cy = 1 + Math.floor(Math.random() * (rows - 2));
+    const [dx, dy, bit, opp] = DIRS[Math.floor(Math.random() * 4)];
+    const nx = cx + dx, ny = cy + dy;
+    if (nx >= 0 && ny >= 0 && nx < cols && ny < rows) {
+      cells[cy][cx] |= bit;
+      cells[ny][nx] |= opp;
+    }
+  }
+  const gw = cols * 2 + 1, gh = rows * 2 + 1;
+  const open = Array.from({ length: gh }, () => Array(gw).fill(false));
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const gx = x * 2 + 1, gy = y * 2 + 1;
+      open[gy][gx] = true;
+      if (cells[y][x] & 2) open[gy][gx + 1] = true;
+      if (cells[y][x] & 4) open[gy + 1][gx] = true;
+    }
+  }
+  return { open, gw, gh };
+}
+
+function bfsDistances(open, gw, gh, sx, sy) {
+  const dist = new Map();
+  const key = (x, y) => x + "," + y;
+  const q = [[sx, sy]];
+  dist.set(key(sx, sy), 0);
+  let head = 0;
+  while (head < q.length) {
+    const [x, y] = q[head++];
+    const d = dist.get(key(x, y));
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= gw || ny >= gh || !open[ny][nx]) continue;
+      const k = key(nx, ny);
+      if (!dist.has(k)) { dist.set(k, d + 1); q.push([nx, ny]); }
+    }
+  }
+  return dist;
+}
+
+/* ============================ Game state ============================== */
+
+const state = {
+  phase: "menu",         // menu | intro | play | dead | clear
+  depth: 1,
+  open: null, gw: 0, gh: 0,
+  player: { x: 0, y: 0, vx: 0, vy: 0, r: T * 0.3 },
+  trail: new Map(),       // "x,y" -> step index when visited
+  trailStep: 0,
+  lanterns: [],           // {tx,ty,taken,flicker}
+  taken: 0,
+  gate: { tx: 0, ty: 0, open: false, spin: 0 },
+  wisps: [],
+  burn: 0,                // 0..1
+  burnFlash: 0,
+  time: 0,
+  camX: 0, camY: 0,
+  shake: 0,
+  lastFrame: 0,
+  rafId: 0,
+};
+const keys = new Set();
+let particles = [];
+
+const tkey = (x, y) => x + "," + y;
+function playerTile() {
+  return [Math.floor(state.player.x / T), Math.floor(state.player.y / T)];
+}
+
+/* ============================ Level setup ============================= */
+
+function levelConfig(depth) {
+  return {
+    cols: Math.min(8 + depth, 20),
+    rows: Math.min(5 + depth, 13),
+    lanterns: Math.min(2 + depth, 7),
+    wispSpeed: WISP_BASE_SPEED + depth * 0.14 * T,
+  };
+}
+
+function startLevel(depth) {
+  const cfg = levelConfig(depth);
+  const { open, gw, gh } = generateMaze(cfg.cols, cfg.rows);
+  state.depth = depth;
+  state.open = open; state.gw = gw; state.gh = gh;
+  state.trail = new Map();
+  state.trailStep = 0;
+  state.taken = 0;
+  state.wisps = [];
+  state.burn = 0;
+  state.burnFlash = 0;
+  state.time = 0;
+  state.shake = 0;
+  particles = [];
+
+  // player at cell (1,1) in tile coords
+  state.player.x = 1.5 * T;
+  state.player.y = 1.5 * T;
+  state.player.vx = state.player.vy = 0;
+  markTrail(1, 1);
+
+  // gate at the farthest corridor tile from spawn
+  const dist = bfsDistances(open, gw, gh, 1, 1);
+  let far = null, farD = -1;
+  for (const [k, d] of dist) {
+    if (d > farD) { farD = d; far = k; }
+  }
+  const [gx, gy] = far.split(",").map(Number);
+  state.gate = { tx: gx, ty: gy, open: false, spin: 0 };
+
+  // lanterns on distant corridor tiles, spread apart
+  const candidates = [];
+  for (const [k, d] of dist) {
+    if (d >= farD * 0.3 && k !== far) candidates.push(k);
+  }
+  const picked = [];
+  let guard = 0;
+  while (picked.length < cfg.lanterns && guard++ < 4000 && candidates.length) {
+    const k = candidates[Math.floor(Math.random() * candidates.length)];
+    const [x, y] = k.split(",").map(Number);
+    const okDist = picked.every(p => Math.hypot(p.tx - x, p.ty - y) >= 5) &&
+      Math.hypot(gx - x, gy - y) >= 4;
+    if (okDist) picked.push({ tx: x, ty: y, taken: false, flicker: Math.random() * 10 });
+  }
+  state.lanterns = picked;
+  $("hud-level").textContent = depth;
+  updateShardHUD();
+
+  showGame();
+  resize();
+  camSnap();
+  state.phase = "intro";
+  $("intro-lvl").textContent = "DEPTH " + depth;
+  $("intro-hint").textContent = HINTS[(depth - 1) % HINTS.length];
+  const intro = $("level-intro");
+  intro.classList.remove("active");
+  void intro.offsetWidth; // restart CSS animation
+  intro.classList.add("active");
+  setTimeout(() => { if (state.phase === "intro") state.phase = "play"; }, 850);
+  setTimeout(() => intro.classList.remove("active"), 2100);
+
+  $("death-overlay").classList.remove("active");
+  $("clear-overlay").classList.remove("active");
+
+  cancelAnimationFrame(state.rafId);
+  state.lastFrame = performance.now();
+  state.rafId = requestAnimationFrame(loop);
+}
+
+function updateShardHUD() {
+  $("hud-shards").innerHTML = `${state.taken}<span class="dim">/${state.lanterns.length || levelConfig(state.depth).lanterns}</span>`;
+}
+
+/* ============================== Trail ================================= */
+
+function markTrail(tx, ty) {
+  const k = tkey(tx, ty);
+  if (!state.trail.has(k)) state.trail.set(k, state.trailStep++);
+}
+
+function burnWake() {
+  if (state.burn < 1 || state.phase !== "play") return;
+  state.burn = 0;
+  state.burnFlash = 1;
+  state.shake = Math.max(state.shake, 5);
+  sfx.burn();
+  // keep a small bubble of trail around the player (BFS over trail tiles)
+  const [ptx, pty] = playerTile();
+  const keep = new Set([tkey(ptx, pty)]);
+  let frontier = [[ptx, pty]];
+  for (let d = 0; d < BURN_KEEP_RADIUS; d++) {
+    const next = [];
+    for (const [x, y] of frontier) {
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const k = tkey(x + dx, y + dy);
+        if (state.trail.has(k) && !keep.has(k)) { keep.add(k); next.push([x + dx, y + dy]); }
+      }
+    }
+    frontier = next;
+  }
+  // ember burst on every burned tile near the viewport
+  for (const [k] of state.trail) {
+    if (keep.has(k)) continue;
+    const [x, y] = k.split(",").map(Number);
+    const px = (x + 0.5) * T, py = (y + 0.5) * T;
+    if (Math.abs(px - state.camX - VW / 2) < VW && Math.abs(py - state.camY - VH / 2) < VH) {
+      spawnBurst(px, py, 2, "#45d8ff", 60);
+    }
+  }
+  const kept = new Map();
+  for (const k of keep) kept.set(k, state.trail.get(k));
+  state.trail = kept;
+  // wisps stranded off the trail burn with it
+  for (const w of state.wisps) {
+    if (w.state !== "hunt") continue;
+    const wt = tkey(Math.floor(w.x / T), Math.floor(w.y / T));
+    if (!state.trail.has(wt)) killWisp(w);
+  }
+}
+
+/* ============================== Wisps ================================= */
+
+function spawnWisp(tx, ty, speed) {
+  state.wisps.push({
+    x: (tx + 0.5) * T, y: (ty + 0.5) * T,
+    speed,
+    state: "waking",     // waking | hunt | dead
+    wakeAt: state.time + 1.5,
+    pedestal: { tx, ty },
+    respawnAt: 0,
+    path: [], pathIdx: 0, repathT: 0,
+    history: [], segs: 9,
+    wob: Math.random() * 10,
+  });
+  sfx.wake();
+  spawnBurst((tx + 0.5) * T, (ty + 0.5) * T, 24, "#ff4d7f", 160);
+}
+
+function killWisp(w) {
+  w.state = "dead";
+  w.respawnAt = state.time + WISP_RESPAWN;
+  w.history = [];
+  spawnBurst(w.x, w.y, 30, "#ff4d7f", 200);
+  sfx.wispDie();
+}
+
+function wispRepath(w) {
+  // BFS over trail tiles only — their entire world is your wake
+  const start = tkey(Math.floor(w.x / T), Math.floor(w.y / T));
+  const [ptx, pty] = playerTile();
+  const goal = tkey(ptx, pty);
+  if (!state.trail.has(start)) { killWisp(w); return; }
+  if (start === goal) { w.path = []; return; }
+  const prev = new Map([[start, null]]);
+  const q = [start];
+  let head = 0, found = false;
+  while (head < q.length) {
+    const cur = q[head++];
+    if (cur === goal) { found = true; break; }
+    const [x, y] = cur.split(",").map(Number);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const k = tkey(x + dx, y + dy);
+      if (state.trail.has(k) && !prev.has(k)) { prev.set(k, cur); q.push(k); }
+    }
+  }
+  if (!found) { w.path = []; return; }
+  const path = [];
+  let cur = goal;
+  while (cur !== start) { path.push(cur); cur = prev.get(cur); }
+  path.reverse();
+  w.path = path.map(k => {
+    const [x, y] = k.split(",").map(Number);
+    return { x: (x + 0.5) * T, y: (y + 0.5) * T };
+  });
+  w.pathIdx = 0;
+}
+
+function updateWisps(dt) {
+  for (const w of state.wisps) {
+    if (w.state === "dead") {
+      // stirs again only when its pedestal is part of your wake once more
+      if (state.time >= w.respawnAt && state.trail.has(tkey(w.pedestal.tx, w.pedestal.ty))) {
+        w.state = "waking";
+        w.wakeAt = state.time + 1.5;
+        w.x = (w.pedestal.tx + 0.5) * T;
+        w.y = (w.pedestal.ty + 0.5) * T;
+        w.path = []; w.repathT = 0;
+        spawnBurst(w.x, w.y, 16, "#ff4d7f", 120);
+        sfx.wake();
+      }
+      continue;
+    }
+    if (w.state === "waking") {
+      w.wob += dt;
+      // if its tile gets burned away mid-stir, it never finishes waking
+      if (!state.trail.has(tkey(Math.floor(w.x / T), Math.floor(w.y / T)))) { killWisp(w); continue; }
+      if (state.time >= w.wakeAt) {
+        w.state = "hunt";
+        spawnBurst(w.x, w.y, 10, "#ff4d7f", 90);
+      }
+      continue;
+    }
+    w.wob += dt;
+    w.repathT -= dt;
+    if (w.repathT <= 0 || w.pathIdx >= w.path.length) {
+      wispRepath(w);
+      w.repathT = 0.35;
+      if (w.state === "dead") continue;
+    }
+    if (w.pathIdx < w.path.length) {
+      const target = w.path[w.pathIdx];
+      const dx = target.x - w.x, dy = target.y - w.y;
+      const d = Math.hypot(dx, dy);
+      const step = w.speed * dt;
+      if (d <= step) { w.x = target.x; w.y = target.y; w.pathIdx++; }
+      else { w.x += (dx / d) * step; w.y += (dy / d) * step; }
+    }
+    // body history for the serpent segments
+    const last = w.history[0];
+    if (!last || Math.hypot(w.x - last.x, w.y - last.y) > 2) {
+      w.history.unshift({ x: w.x, y: w.y });
+      if (w.history.length > 90) w.history.pop();
+    }
+    // caught?
+    if (Math.hypot(w.x - state.player.x, w.y - state.player.y) < state.player.r + T * 0.26) {
+      onDeath();
+      return;
+    }
+  }
+}
+
+/* ============================= Particles ============================== */
+
+function spawnBurst(x, y, n, color, speed) {
+  if (reducedMotion) n = Math.min(n, 6);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = speed * (0.3 + Math.random() * 0.7);
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      r: 1.5 + Math.random() * 2.5,
+      life: 0.4 + Math.random() * 0.5,
+      age: 0, color,
+    });
+  }
+}
+
+function updateParticles(dt) {
+  particles = particles.filter(p => p.age < p.life);
+  for (const p of particles) {
+    p.age += dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= 0.92; p.vy *= 0.92;
+  }
+}
+
+/* ============================== Player ================================ */
+
+function solidAt(px, py) {
+  const tx = Math.floor(px / T), ty = Math.floor(py / T);
+  if (tx < 0 || ty < 0 || tx >= state.gw || ty >= state.gh) return true;
+  return !state.open[ty][tx];
+}
+
+function moveAxis(axis, delta) {
+  const p = state.player;
+  const r = p.r * 0.86; // forgiving corners
+  p[axis] += delta;
+  const x0 = p.x - r, x1 = p.x + r, y0 = p.y - r, y1 = p.y + r;
+  for (let ty = Math.floor(y0 / T); ty <= Math.floor(y1 / T); ty++) {
+    for (let tx = Math.floor(x0 / T); tx <= Math.floor(x1 / T); tx++) {
+      if (tx < 0 || ty < 0 || tx >= state.gw || ty >= state.gh || state.open[ty][tx]) continue;
+      // push out of this solid tile along the moved axis
+      if (axis === "x") {
+        p.x = delta > 0 ? tx * T - r : (tx + 1) * T + r;
+      } else {
+        p.y = delta > 0 ? ty * T - r : (ty + 1) * T + r;
+      }
+    }
+  }
+}
+
+function updatePlayer(dt) {
+  let ix = 0, iy = 0;
+  if (keys.has("ArrowLeft") || keys.has("a")) ix -= 1;
+  if (keys.has("ArrowRight") || keys.has("d")) ix += 1;
+  if (keys.has("ArrowUp") || keys.has("w")) iy -= 1;
+  if (keys.has("ArrowDown") || keys.has("s")) iy += 1;
+  if (ix && iy) { ix *= 0.7071; iy *= 0.7071; }
+  moveAxis("x", ix * PLAYER_SPEED * dt);
+  moveAxis("y", iy * PLAYER_SPEED * dt);
+
+  const [ptx, pty] = playerTile();
+  markTrail(ptx, pty);
+
+  // lanterns
+  for (const l of state.lanterns) {
+    if (l.taken) continue;
+    if (Math.hypot((l.tx + 0.5) * T - state.player.x, (l.ty + 0.5) * T - state.player.y) < T * 0.55) {
+      l.taken = true;
+      state.taken++;
+      updateShardHUD();
+      sfx.lantern();
+      spawnBurst((l.tx + 0.5) * T, (l.ty + 0.5) * T, 20, "#ffc857", 140);
+      const cfg = levelConfig(state.depth);
+      spawnWisp(l.tx, l.ty, cfg.wispSpeed + state.taken * 0.1 * T);
+      if (state.taken === state.lanterns.length) {
+        state.gate.open = true;
+        sfx.gate();
+      }
+    }
+  }
+
+  // gate
+  if (state.gate.open &&
+    Math.hypot((state.gate.tx + 0.5) * T - state.player.x, (state.gate.ty + 0.5) * T - state.player.y) < T * 0.5) {
+    onClear();
+  }
+}
+
+/* ============================== Camera ================================ */
+
+function worldW() { return state.gw * T; }
+function worldH() { return state.gh * T; }
+
+function camTarget() {
+  let cx = state.player.x - VW / 2;
+  let cy = state.player.y - VH / 2;
+  cx = Math.max(-40, Math.min(worldW() - VW + 40, cx));
+  cy = Math.max(-40, Math.min(worldH() - VH + 40, cy));
+  if (worldW() + 80 < VW) cx = (worldW() - VW) / 2;
+  if (worldH() + 80 < VH) cy = (worldH() - VH) / 2;
+  return [cx, cy];
+}
+function camSnap() { [state.camX, state.camY] = camTarget(); }
+function updateCamera(dt) {
+  const [tx, ty] = camTarget();
+  const k = Math.min(dt * 6, 1);
+  state.camX += (tx - state.camX) * k;
+  state.camY += (ty - state.camY) * k;
+  state.shake = Math.max(0, state.shake - dt * 14);
+}
+
+/* ============================= Rendering ============================== */
+
+function draw() {
+  ctx.fillStyle = "#0a0c11";
+  ctx.fillRect(0, 0, VW, VH);
+  ctx.save();
+  const sx = state.shake ? (Math.random() - 0.5) * state.shake : 0;
+  const sy = state.shake ? (Math.random() - 0.5) * state.shake : 0;
+  ctx.translate(-state.camX + sx, -state.camY + sy);
+
+  const x0 = Math.max(0, Math.floor(state.camX / T) - 1);
+  const y0 = Math.max(0, Math.floor(state.camY / T) - 1);
+  const x1 = Math.min(state.gw - 1, Math.ceil((state.camX + VW) / T) + 1);
+  const y1 = Math.min(state.gh - 1, Math.ceil((state.camY + VH) / T) + 1);
+
+  // floor + walls
+  for (let ty = y0; ty <= y1; ty++) {
+    for (let tx = x0; tx <= x1; tx++) {
+      const px = tx * T, py = ty * T;
+      if (state.open[ty][tx]) {
+        ctx.fillStyle = "#10141c";
+        ctx.fillRect(px, py, T, T);
+      } else {
+        ctx.fillStyle = "#1a1f2b";
+        ctx.fillRect(px, py, T, T);
+        // top edge light when corridor is above
+        if (ty > 0 && state.open[ty - 1] && state.open[ty - 1][tx]) {
+          ctx.fillStyle = "#2b3345";
+          ctx.fillRect(px, py, T, 3);
+        }
+      }
+    }
+  }
+
+  // trail (the wake) — brighter where fresher
+  const flash = state.burnFlash;
+  for (const [k, step] of state.trail) {
+    const [tx, ty] = k.split(",").map(Number);
+    if (tx < x0 || tx > x1 || ty < y0 || ty > y1) continue;
+    const fresh = 1 - Math.min(1, (state.trailStep - step) / 260);
+    const a = 0.10 + fresh * 0.22 + flash * 0.25;
+    ctx.fillStyle = `rgba(69, 216, 255, ${a.toFixed(3)})`;
+    const inset = T * 0.18;
+    ctx.fillRect(tx * T + inset, ty * T + inset, T - inset * 2, T - inset * 2);
+  }
+
+  // gate
+  drawGate();
+
+  // lanterns
+  for (const l of state.lanterns) {
+    if (l.taken) continue;
+    drawLantern(l);
+  }
+
+  // particles under entities
+  for (const p of particles) {
+    ctx.globalAlpha = 1 - p.age / p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // wisps
+  for (const w of state.wisps) {
+    if (w.state === "hunt") drawWisp(w);
+    else if (w.state === "waking") drawWakingWisp(w);
+  }
+
+  // player
+  drawPlayer();
+
+  ctx.restore();
+
+  drawDarkness();
+  if (state.burnFlash > 0) state.burnFlash = Math.max(0, state.burnFlash - 0.04);
+}
+
+function drawLantern(l) {
+  const x = (l.tx + 0.5) * T, y = (l.ty + 0.5) * T;
+  const f = 0.85 + Math.sin(performance.now() / 140 + l.flicker) * 0.15;
+  const g = ctx.createRadialGradient(x, y, 2, x, y, T * 1.1);
+  g.addColorStop(0, `rgba(255, 200, 87, ${0.5 * f})`);
+  g.addColorStop(1, "rgba(255, 200, 87, 0)");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, T * 1.1, 0, Math.PI * 2); ctx.fill();
+  // flame diamond
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.PI / 4);
+  const s = T * 0.16 * f;
+  ctx.fillStyle = "#ffc857";
+  ctx.fillRect(-s, -s, s * 2, s * 2);
+  ctx.fillStyle = "#fff3d6";
+  ctx.fillRect(-s * 0.45, -s * 0.45, s * 0.9, s * 0.9);
+  ctx.restore();
+}
+
+function drawGate() {
+  const g = state.gate;
+  const x = (g.tx + 0.5) * T, y = (g.ty + 0.5) * T;
+  g.spin += 0.02 + (g.open ? 0.04 : 0);
+  const R = T * 0.34;
+  if (g.open) {
+    const halo = ctx.createRadialGradient(x, y, 2, x, y, T * 1.6);
+    halo.addColorStop(0, "rgba(177, 140, 255, 0.5)");
+    halo.addColorStop(1, "rgba(177, 140, 255, 0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(x, y, T * 1.6, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(g.spin);
+  ctx.strokeStyle = g.open ? "#b18cff" : "#3a3f52";
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.arc(0, 0, R, i * Math.PI / 2 + 0.25, i * Math.PI / 2 + Math.PI / 2 - 0.25);
+    ctx.stroke();
+  }
+  ctx.rotate(-g.spin * 2);
+  ctx.strokeStyle = g.open ? "#e4d6ff" : "#2c3040";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, R * 0.55, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawPlayer() {
+  const p = state.player;
+  const g = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, p.r * 2.6);
+  g.addColorStop(0, "rgba(69, 216, 255, 0.5)");
+  g.addColorStop(1, "rgba(69, 216, 255, 0)");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#45d8ff";
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#e9fbff";
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 0.45, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawWakingWisp(w) {
+  // a stirring ember: swelling glow with an opening eye
+  const t = Math.max(0, 1 - (w.wakeAt - state.time) / 1.5);
+  const pulse = 0.8 + Math.sin(w.wob * 14) * 0.2;
+  const R = T * (0.3 + 0.9 * t) * pulse;
+  const g = ctx.createRadialGradient(w.x, w.y, 2, w.x, w.y, R);
+  g.addColorStop(0, `rgba(255, 77, 127, ${0.55 * t + 0.15})`);
+  g.addColorStop(1, "rgba(255, 77, 127, 0)");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(w.x, w.y, R, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = `rgba(255, 110, 150, ${0.4 + 0.6 * t})`;
+  ctx.beginPath(); ctx.arc(w.x, w.y, T * 0.12 * (0.5 + t), 0, Math.PI * 2); ctx.fill();
+  // the eye opens as it wakes
+  if (t > 0.45) {
+    const open = (t - 0.45) / 0.55;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.ellipse(w.x, w.y, T * 0.09, T * 0.09 * open, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#30050f";
+    ctx.beginPath();
+    ctx.ellipse(w.x, w.y, T * 0.045, T * 0.045 * open, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawWisp(w) {
+  const n = w.segs;
+  const spacing = T * 0.24;
+  // walk the history to place each segment
+  const pts = [{ x: w.x, y: w.y }];
+  let need = spacing, hi = 0, prev = { x: w.x, y: w.y };
+  while (pts.length < n && hi < w.history.length) {
+    const h = w.history[hi];
+    const d = Math.hypot(h.x - prev.x, h.y - prev.y);
+    if (d >= need) {
+      const t = need / d;
+      const nx = prev.x + (h.x - prev.x) * t, ny = prev.y + (h.y - prev.y) * t;
+      pts.push({ x: nx, y: ny });
+      prev = { x: nx, y: ny };
+      need = spacing;
+    } else {
+      need -= d;
+      prev = h;
+      hi++;
+    }
+  }
+  while (pts.length < n) pts.push(pts[pts.length - 1]);
+
+  // ambient glow around the head
+  const halo = ctx.createRadialGradient(w.x, w.y, 2, w.x, w.y, T * 1.3);
+  halo.addColorStop(0, "rgba(255, 77, 127, 0.35)");
+  halo.addColorStop(1, "rgba(255, 77, 127, 0)");
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(w.x, w.y, T * 1.3, 0, Math.PI * 2); ctx.fill();
+
+  // body, tail -> head, with slight undulation
+  for (let i = n - 1; i >= 0; i--) {
+    const pt = pts[i];
+    const next = pts[Math.max(0, i - 1)];
+    let ox = 0, oy = 0;
+    if (i > 0) {
+      const dirx = next.x - pt.x, diry = next.y - pt.y;
+      const dl = Math.hypot(dirx, diry) || 1;
+      const wave = Math.sin(w.wob * 6 + i * 0.85) * T * 0.06 * (i / n);
+      ox = (-diry / dl) * wave;
+      oy = (dirx / dl) * wave;
+    }
+    const frac = 1 - i / n;
+    const r = T * (0.10 + 0.16 * frac);
+    ctx.fillStyle = `rgba(255, ${Math.round(50 + 60 * frac)}, ${Math.round(95 + 40 * frac)}, ${(0.25 + 0.75 * frac).toFixed(2)})`;
+    ctx.beginPath();
+    ctx.arc(pt.x + ox, pt.y + oy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // eyes, looking along the velocity
+  const head = pts[0], neck = pts[1] || head;
+  let dx = head.x - neck.x, dy = head.y - neck.y;
+  const dl = Math.hypot(dx, dy) || 1;
+  dx /= dl; dy /= dl;
+  const ex = -dy, ey = dx;
+  const er = T * 0.055;
+  for (const s of [-1, 1]) {
+    const cx = head.x + dx * T * 0.08 + ex * s * T * 0.11;
+    const cy = head.y + dy * T * 0.08 + ey * s * T * 0.11;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(cx, cy, er, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#30050f";
+    ctx.beginPath(); ctx.arc(cx + dx * er * 0.5, cy + dy * er * 0.5, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function drawDarkness() {
+  // veil with light holes, built on its own layer so the holes only cut the veil
+  lctx.clearRect(0, 0, VW, VH);
+  lctx.fillStyle = "rgba(4, 5, 9, 0.88)";
+  lctx.fillRect(0, 0, VW, VH);
+  lctx.globalCompositeOperation = "destination-out";
+  const px = state.player.x - state.camX, py = state.player.y - state.camY;
+  hole(px, py, T * 5.2, 1);
+  for (const l of state.lanterns) {
+    if (!l.taken) hole((l.tx + 0.5) * T - state.camX, (l.ty + 0.5) * T - state.camY, T * 1.6, 0.85);
+  }
+  for (const w of state.wisps) {
+    if (w.state !== "dead") hole(w.x - state.camX, w.y - state.camY, T * 1.7, 0.8);
+  }
+  if (state.gate.open) hole((state.gate.tx + 0.5) * T - state.camX, (state.gate.ty + 0.5) * T - state.camY, T * 2.2, 0.9);
+  lctx.globalCompositeOperation = "source-over";
+  ctx.drawImage(lightCanvas, 0, 0, VW, VH);
+
+  // faint breadcrumb memory of the wake above the veil
+  ctx.save();
+  ctx.translate(-state.camX, -state.camY);
+  ctx.fillStyle = "rgba(69, 216, 255, 0.10)";
+  for (const [k] of state.trail) {
+    const [tx, ty] = k.split(",").map(Number);
+    ctx.beginPath();
+    ctx.arc((tx + 0.5) * T, (ty + 0.5) * T, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function hole(x, y, r, strength) {
+  if (x < -r || y < -r || x > VW + r || y > VH + r) return;
+  const g = lctx.createRadialGradient(x, y, r * 0.15, x, y, r);
+  g.addColorStop(0, `rgba(0,0,0,${strength})`);
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  lctx.fillStyle = g;
+  lctx.beginPath(); lctx.arc(x, y, r, 0, Math.PI * 2); lctx.fill();
+}
+
+/* ============================== Loop ================================== */
+
+function loop(now) {
+  const dt = Math.min((now - state.lastFrame) / 1000, 0.05);
+  state.lastFrame = now;
+
+  if (state.phase === "play") {
+    state.time += dt;
+    state.burn = Math.min(1, state.burn + dt / BURN_CHARGE);
+    updatePlayer(dt);
+    if (state.phase === "play") updateWisps(dt);
+    updateCamera(dt);
+    $("hud-time").textContent = state.time.toFixed(1);
+    const wrap = $("burn-wrap");
+    $("burn-fill").style.width = (state.burn * 100).toFixed(0) + "%";
+    wrap.classList.toggle("ready", state.burn >= 1);
+    $("burn-label").textContent = state.burn >= 1 ? "space · burn your wake" : "burn charging…";
+  } else if (state.phase === "intro") {
+    updateCamera(dt);
+  }
+
+  updateParticles(dt);
+  draw();
+
+  if (state.phase !== "menu") state.rafId = requestAnimationFrame(loop);
+}
+
+/* ============================ Transitions ============================= */
+
+function onDeath() {
+  if (state.phase !== "play") return;
+  state.phase = "dead";
+  state.shake = 10;
+  sfx.death();
+  spawnBurst(state.player.x, state.player.y, 40, "#45d8ff", 240);
+  const subs = [
+    "Your own wake led it straight to you.",
+    "It never left your road. You built it a fast one.",
+    "Next time, burn the bridge while it's standing on it.",
+    "Loop wider. Arrive from clean ground.",
+  ];
+  $("death-sub").textContent = subs[Math.floor(Math.random() * subs.length)];
+  setTimeout(() => { if (state.phase === "dead") $("death-overlay").classList.add("active"); }, 550);
+}
+
+function onClear() {
+  if (state.phase !== "play") return;
+  state.phase = "clear";
+  store.escapes++;
+  if (state.depth + 1 > store.bestDepth) store.bestDepth = state.depth + 1;
+  saveStore();
+  sfx.gate();
+  $("clear-sub").innerHTML = `Depth ${state.depth} cleared in <b>${state.time.toFixed(1)}s</b>. Descending…`;
+  $("clear-overlay").classList.add("active");
+  setTimeout(() => { if (state.phase === "clear") startLevel(state.depth + 1); }, 1700);
+}
+
+/* ============================== Input ================================= */
+
+const HANDLED_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " ", "w", "a", "s", "d", "r", "Escape"]);
+window.addEventListener("keydown", e => {
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (HANDLED_KEYS.has(k) || HANDLED_KEYS.has(e.key)) e.preventDefault();
+  if (e.repeat) return;
+  if (k === "Escape") {
+    if (state.phase !== "menu") { cancelAnimationFrame(state.rafId); showMenu(); }
+    return;
+  }
+  if (state.phase === "dead" && k === "r") { startLevel(state.depth); return; }
+  if (k === " ") { burnWake(); return; }
+  keys.add(k);
+});
+window.addEventListener("keyup", e => {
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  keys.delete(k);
+});
+window.addEventListener("blur", () => keys.clear());
+
+$("start-btn").addEventListener("click", () => startLevel(1));
+$("retry-btn").addEventListener("click", () => startLevel(state.depth));
+$("death-menu-btn").addEventListener("click", () => { cancelAnimationFrame(state.rafId); showMenu(); });
+
+$("sound-toggle").addEventListener("click", () => {
+  store.sound = !store.sound;
+  saveStore();
+  $("sound-toggle").textContent = `sound: ${store.sound ? "on" : "off"}`;
+  if (store.sound) sfx.lantern();
+});
+$("wipe-btn").addEventListener("click", () => {
+  if (confirm("Wipe all WAKE progress on this device?")) {
+    store.bestDepth = 0; store.escapes = 0;
+    saveStore();
+    renderMenuStats();
+  }
+});
+
+/* =============================== Boot ================================= */
+
+renderMenuStats();
+window.__wake = { state, startLevel, burnWake, T };
+</script>
+</body>
+</html>
