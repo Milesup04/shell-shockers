@@ -186,14 +186,17 @@
     Everywhere you walk, you leave a glowing wake — and <span class="wisp-word">Wisps</span> can only
     hunt along it. Steal every <span class="lantern-word">lantern</span> (each one you take wakes
     something), then reach the gate. Every shortcut you carve becomes <b>their road</b>.
-    When your burn is charged, torch your entire wake — any Wisp standing on it goes with it.
+    When your burn is charged, torch your entire wake — any Wisp standing on it goes with it. Fifty depths down is the surface. Each one is meaner than the last.
   </p>
   <div class="keys">
     <span><b>WASD</b> / <b>←↑↓→</b> move</span>
     <span><b>Space</b> burn wake</span>
     <span><b>Esc</b> menu</span>
   </div>
-  <button id="start-btn" type="button">DESCEND</button>
+  <div class="menu-actions" style="display:flex; gap:12px; align-items:center; margin-top:30px;">
+    <button id="start-btn" type="button" style="margin-top:0">DESCEND</button>
+    <button id="continue-btn" class="btn" type="button" style="display:none"></button>
+  </div>
   <div class="menu-stats" id="menu-stats"></div>
   <div class="menu-foot">
     <button id="sound-toggle" type="button">sound: on</button>
@@ -233,6 +236,9 @@
   <div id="clear-overlay" class="overlay">
     <div class="big">ESCAPED</div>
     <div class="sub" id="clear-sub"></div>
+    <div class="actions" id="clear-actions" style="display:none">
+      <button class="btn primary" id="clear-menu-btn" type="button">Return to the surface</button>
+    </div>
   </div>
 </div>
 
@@ -244,9 +250,8 @@
 const T = 44;                       // tile size, px
 const PLAYER_SPEED = 4.3 * T;       // px/s
 const WISP_BASE_SPEED = 2.55 * T;   // px/s at depth 1
-const BURN_CHARGE = 14;             // seconds to charge a burn
-const BURN_KEEP_RADIUS = 2;        // trail tiles kept around player (BFS depth)
-const WISP_RESPAWN = 9;             // seconds before a burned wisp can stir again
+const BURN_KEEP_RADIUS = 2;         // trail tiles kept around player (BFS depth)
+const MAX_DEPTH = 50;
 const HINTS = [
   "Every lantern wakes something.",
   "They only run your roads.",
@@ -255,14 +260,26 @@ const HINTS = [
   "Loop wide. Arrive from clean ground.",
   "Lure them deep, then cut the road.",
   "The gate opens when the dark is empty of light.",
+  "Down here they wake faster.",
+  "The dark grows. Your light doesn't.",
+  "Dead ends are where wakes go to end.",
+  "Your burn takes longer to breathe down here.",
+  "They stir sooner. Walk like you mean it.",
 ];
+const SPECIAL_HINTS = {
+  10: "From here on, opening the gate wakes something at your oldest footprint.",
+  20: "Halfway isn't a place. It's a pace.",
+  35: "They are almost as fast as you now.",
+  49: "One more. Leave nothing behind you.",
+  50: "The surface is real. Run.",
+};
 
 const STORE_KEY = "wake.v1";
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function loadStore() {
   try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
-  return { bestDepth: 0, escapes: 0, sound: true };
+  return { bestDepth: 0, escapes: 0, conquests: 0, sound: true };
 }
 const store = loadStore();
 function saveStore() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} }
@@ -312,10 +329,19 @@ function showGame() {
 }
 
 function renderMenuStats() {
+  const conquests = store.conquests || 0;
   $("menu-stats").innerHTML = store.bestDepth > 0
-    ? `deepest depth <b>${store.bestDepth}</b> · escapes <b>${store.escapes}</b>`
-    : "No descents yet. Progress is saved on this device.";
+    ? `deepest depth <b>${store.bestDepth}/${MAX_DEPTH}</b> · escapes <b>${store.escapes}</b>` +
+      (conquests ? ` · surfaced <b>×${conquests}</b>` : "")
+    : `${MAX_DEPTH} depths down. Progress is saved on this device.`;
   $("sound-toggle").textContent = `sound: ${store.sound ? "on" : "off"}`;
+  const cont = $("continue-btn");
+  if (store.bestDepth >= 2) {
+    cont.style.display = "inline-block";
+    cont.textContent = `CONTINUE · DEPTH ${Math.min(store.bestDepth, MAX_DEPTH)}`;
+  } else {
+    cont.style.display = "none";
+  }
 }
 
 /* =============================== Canvas =============================== */
@@ -341,7 +367,7 @@ window.addEventListener("resize", () => { if (state.phase !== "menu") resize(); 
 
 // Recursive-backtracker maze -> double-resolution tile grid.
 // open[y][x] === true means corridor; false means wall.
-function generateMaze(cols, rows) {
+function generateMaze(cols, rows, loopDensity) {
   const cells = Array.from({ length: rows }, () => Array(cols).fill(0)); // bitmask N1 E2 S4 W8
   const stack = [[0, 0]];
   const seen = Array.from({ length: rows }, () => Array(cols).fill(false));
@@ -362,7 +388,7 @@ function generateMaze(cols, rows) {
     stack.push([nx, ny]);
   }
   // Punch some extra loops so the maze isn't a strict tree (more routing choices)
-  const extra = Math.floor(cols * rows * 0.06);
+  const extra = Math.floor(cols * rows * loopDensity);
   for (let i = 0; i < extra; i++) {
     const cx = 1 + Math.floor(Math.random() * (cols - 2));
     const cy = 1 + Math.floor(Math.random() * (rows - 2));
@@ -410,6 +436,7 @@ function bfsDistances(open, gw, gh, sx, sy) {
 const state = {
   phase: "menu",         // menu | intro | play | dead | clear
   depth: 1,
+  cfg: levelConfig(1),
   open: null, gw: 0, gh: 0,
   player: { x: 0, y: 0, vx: 0, vy: 0, r: T * 0.3 },
   trail: new Map(),       // "x,y" -> step index when visited
@@ -436,19 +463,32 @@ function playerTile() {
 
 /* ============================ Level setup ============================= */
 
+// The 50-depth difficulty curve. Every knob tightens as you descend:
+// bigger mazes, more lanterns to steal, faster wisps (approaching your own
+// speed), a shorter wake-up grace, a slower burn recharge, quicker wisp
+// respawns, and fewer loops (more dead ends) in the maze itself.
 function levelConfig(depth) {
+  const d = Math.min(depth, MAX_DEPTH);
   return {
-    cols: Math.min(8 + depth, 20),
-    rows: Math.min(5 + depth, 13),
-    lanterns: Math.min(2 + depth, 7),
-    wispSpeed: WISP_BASE_SPEED + depth * 0.14 * T,
+    cols: Math.min(8 + Math.floor(d * 0.45), 26),
+    rows: Math.min(5 + Math.floor(d * 0.35), 17),
+    lanterns: Math.min(2 + Math.ceil(d / 6), 9),
+    wispSpeed: Math.min(WISP_BASE_SPEED + d * 0.035 * T, PLAYER_SPEED * 0.97),
+    grace: Math.max(0.6, 1.5 - d * 0.02),        // wake-up delay after spawning
+    burnCharge: Math.min(20, 13 + d * 0.14),      // seconds to charge a burn
+    respawn: Math.max(4, 9 - d * 0.1),            // burned-wisp stir delay
+    repath: Math.max(0.18, 0.35 - d * 0.004),     // hunt recalculation interval
+    loops: Math.max(0.02, 0.06 - d * 0.0008),     // extra maze loop density
+    gateGuard: d >= 10,                           // gate opening wakes one more
   };
 }
 
 function startLevel(depth) {
+  depth = Math.min(depth, MAX_DEPTH);
   const cfg = levelConfig(depth);
-  const { open, gw, gh } = generateMaze(cfg.cols, cfg.rows);
+  const { open, gw, gh } = generateMaze(cfg.cols, cfg.rows, cfg.loops);
   state.depth = depth;
+  state.cfg = cfg;
   state.open = open; state.gw = gw; state.gh = gh;
   state.trail = new Map();
   state.trailStep = 0;
@@ -490,7 +530,7 @@ function startLevel(depth) {
     if (okDist) picked.push({ tx: x, ty: y, taken: false, flicker: Math.random() * 10 });
   }
   state.lanterns = picked;
-  $("hud-level").textContent = depth;
+  $("hud-level").innerHTML = depth + '<span class="dim">/' + MAX_DEPTH + "</span>";
   updateShardHUD();
 
   showGame();
@@ -498,7 +538,7 @@ function startLevel(depth) {
   camSnap();
   state.phase = "intro";
   $("intro-lvl").textContent = "DEPTH " + depth;
-  $("intro-hint").textContent = HINTS[(depth - 1) % HINTS.length];
+  $("intro-hint").textContent = SPECIAL_HINTS[depth] || HINTS[(depth - 1) % HINTS.length];
   const intro = $("level-intro");
   intro.classList.remove("active");
   void intro.offsetWidth; // restart CSS animation
@@ -572,7 +612,7 @@ function spawnWisp(tx, ty, speed) {
     x: (tx + 0.5) * T, y: (ty + 0.5) * T,
     speed,
     state: "waking",     // waking | hunt | dead
-    wakeAt: state.time + 1.5,
+    wakeAt: state.time + state.cfg.grace,
     pedestal: { tx, ty },
     respawnAt: 0,
     path: [], pathIdx: 0, repathT: 0,
@@ -585,7 +625,7 @@ function spawnWisp(tx, ty, speed) {
 
 function killWisp(w) {
   w.state = "dead";
-  w.respawnAt = state.time + WISP_RESPAWN;
+  w.respawnAt = state.time + state.cfg.respawn;
   w.history = [];
   spawnBurst(w.x, w.y, 30, "#ff4d7f", 200);
   sfx.wispDie();
@@ -628,7 +668,7 @@ function updateWisps(dt) {
       // stirs again only when its pedestal is part of your wake once more
       if (state.time >= w.respawnAt && state.trail.has(tkey(w.pedestal.tx, w.pedestal.ty))) {
         w.state = "waking";
-        w.wakeAt = state.time + 1.5;
+        w.wakeAt = state.time + state.cfg.grace;
         w.x = (w.pedestal.tx + 0.5) * T;
         w.y = (w.pedestal.ty + 0.5) * T;
         w.path = []; w.repathT = 0;
@@ -651,7 +691,7 @@ function updateWisps(dt) {
     w.repathT -= dt;
     if (w.repathT <= 0 || w.pathIdx >= w.path.length) {
       wispRepath(w);
-      w.repathT = 0.35;
+      w.repathT = state.cfg.repath;
       if (w.state === "dead") continue;
     }
     if (w.pathIdx < w.path.length) {
@@ -756,6 +796,16 @@ function updatePlayer(dt) {
       if (state.taken === state.lanterns.length) {
         state.gate.open = true;
         sfx.gate();
+        if (state.cfg.gateGuard) {
+          let oldK = null, oldStep = Infinity;
+          for (const [k, step] of state.trail) {
+            if (step < oldStep) { oldStep = step; oldK = k; }
+          }
+          if (oldK) {
+            const [ox, oy] = oldK.split(",").map(Number);
+            spawnWisp(ox, oy, state.cfg.wispSpeed + 0.25 * T);
+          }
+        }
       }
     }
   }
@@ -934,7 +984,7 @@ function drawPlayer() {
 
 function drawWakingWisp(w) {
   // a stirring ember: swelling glow with an opening eye
-  const t = Math.max(0, 1 - (w.wakeAt - state.time) / 1.5);
+  const t = Math.max(0, 1 - (w.wakeAt - state.time) / state.cfg.grace);
   const pulse = 0.8 + Math.sin(w.wob * 14) * 0.2;
   const R = T * (0.3 + 0.9 * t) * pulse;
   const g = ctx.createRadialGradient(w.x, w.y, 2, w.x, w.y, R);
@@ -1072,7 +1122,7 @@ function loop(now) {
 
   if (state.phase === "play") {
     state.time += dt;
-    state.burn = Math.min(1, state.burn + dt / BURN_CHARGE);
+    state.burn = Math.min(1, state.burn + dt / state.cfg.burnCharge);
     updatePlayer(dt);
     if (state.phase === "play") updateWisps(dt);
     updateCamera(dt);
@@ -1113,10 +1163,25 @@ function onClear() {
   if (state.phase !== "play") return;
   state.phase = "clear";
   store.escapes++;
+  if (state.depth === MAX_DEPTH) {
+    store.conquests = (store.conquests || 0) + 1;
+    saveStore();
+    sfx.gate();
+    setTimeout(sfx.gate, 350);
+    $("clear-overlay").querySelector(".big").textContent = "SURFACED";
+    $("clear-sub").innerHTML =
+      `Depth ${MAX_DEPTH} cleared in <b>${state.time.toFixed(1)}s</b>. ` +
+      `You walked fifty mazes and outran everything you woke.`;
+    $("clear-actions").style.display = "flex";
+    $("clear-overlay").classList.add("active");
+    return;
+  }
   if (state.depth + 1 > store.bestDepth) store.bestDepth = state.depth + 1;
   saveStore();
   sfx.gate();
+  $("clear-overlay").querySelector(".big").textContent = "ESCAPED";
   $("clear-sub").innerHTML = `Depth ${state.depth} cleared in <b>${state.time.toFixed(1)}s</b>. Descending…`;
+  $("clear-actions").style.display = "none";
   $("clear-overlay").classList.add("active");
   setTimeout(() => { if (state.phase === "clear") startLevel(state.depth + 1); }, 1700);
 }
@@ -1143,8 +1208,10 @@ window.addEventListener("keyup", e => {
 window.addEventListener("blur", () => keys.clear());
 
 $("start-btn").addEventListener("click", () => startLevel(1));
+$("continue-btn").addEventListener("click", () => startLevel(Math.min(store.bestDepth, MAX_DEPTH)));
 $("retry-btn").addEventListener("click", () => startLevel(state.depth));
 $("death-menu-btn").addEventListener("click", () => { cancelAnimationFrame(state.rafId); showMenu(); });
+$("clear-menu-btn").addEventListener("click", () => { cancelAnimationFrame(state.rafId); showMenu(); });
 
 $("sound-toggle").addEventListener("click", () => {
   store.sound = !store.sound;
@@ -1154,7 +1221,7 @@ $("sound-toggle").addEventListener("click", () => {
 });
 $("wipe-btn").addEventListener("click", () => {
   if (confirm("Wipe all WAKE progress on this device?")) {
-    store.bestDepth = 0; store.escapes = 0;
+    store.bestDepth = 0; store.escapes = 0; store.conquests = 0;
     saveStore();
     renderMenuStats();
   }
@@ -1163,7 +1230,7 @@ $("wipe-btn").addEventListener("click", () => {
 /* =============================== Boot ================================= */
 
 renderMenuStats();
-window.__wake = { state, startLevel, burnWake, T };
+window.__wake = { state, startLevel, burnWake, T, levelConfig, store };
 </script>
 </body>
 </html>
