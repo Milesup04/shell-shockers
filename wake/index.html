@@ -765,7 +765,7 @@ function hitsWall(px, py, r) {
 function moveAxis(axis, delta) {
   if (!delta) return;
   const p = state.player;
-  const r = p.r * 0.86; // forgiving corners
+  const r = p.r; // collide on the full body so the drawn orb never enters a wall
   const before = p[axis];
   p[axis] += delta;
   if (!hitsWall(p.x, p.y, r)) return;
